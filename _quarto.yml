@@ -1,13 +1,3 @@
 project:
   type: website
-
-website:
-  title: "GA24 initial findings"
-
-editor: visual
-mainfont: "Helvetica"
-
-# Use the `output` field to specify formats and settings for the website
-output:
-  html_document:
-    self_contained: true
+  output-dir: docs
