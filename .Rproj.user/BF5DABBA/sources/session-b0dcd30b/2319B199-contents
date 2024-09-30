@@ -1,0 +1,491 @@
+---
+title: "UNITAS GA23"
+subtitle: "First attempt at using UNITAS to gain insights into GA speeches"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    extra_dependencies: "fontspec"
+    toc: true
+    toc_depth: 2
+date: "`r Sys.Date()`"
+author: Ed Baker
+mainfont: "Helvetica"
+fontsize: 11pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.width = 6, fig.height = 3.5)
+library(htmlwidgets)
+library(webshot)
+source("graphs1.R")
+theme_set(
+  theme_minimal(base_family = "Helvetica") +
+  theme(
+    text = element_text(family = "Helvetica")  # Set the font family
+  )
+)
+```
+## Intro
+
+$crisiThe following is a partial analysis of `r num_speeches`/194 GA speeches from 2023 using UNITAS LLM. 
+
+### Process:  
+- takes a transcript of speech
+- takes a list of questions written in questions.csv
+- feeds UNITAS LLM a question one by one
+- records the answers in UNITAS_answers.csv
+- if UNITAS produces a non-standard answer, then it records 'LLM Fail'  
+
+### How long does it take?
+- roughly one minute per question per country
+- I did 30 questions, therefore half hour per country
+- adding a question adds 194 minutes to the time ~3 hours
+
+### Open questions:
+- How should we use UNITAS?
+  - option 1: to get an idea of what the speeches are about and then revert to more traditional NLP metrics such as word count to create graphics for the report.
+  - option 2: use the data created by UNITAS and plot that directly in the report.
+- which questions should we ask?
+
+### Next Steps:
+- the recording of the answer could be a more sophisticated process
+- experiment with different prompts / parameters
+
+\pagebreak
+
+## Questions
+
+### name the 5 key topics of the speech
+
+Prompt: Name the 5 key topics or themes of the speech transcript. Give the answer in the form of a comma separated list (topic1, topic2, topic3, topic4, topic5) where each topic is a single word or two words. If there are fewer than five topics, leave the space blank. Only reply with the list, do not write anything else.
+
+
+```{r, echo=FALSE}
+word_cloud1 = wordcloud2(words1, size=0.8, color=rep_len(c("grey","skyblue"), nrow(words1)), minRotation = -pi/6, maxRotation = -pi/6, rotateRatio = 1)
+saveWidget(word_cloud1, "tmp.html", selfcontained = F)
+webshot("tmp.html", "word_cloud1.png", delay = 5)
+```
+
+\pagebreak
+
+If we ask UNITAS the same question again, it comes up with similar answers:
+
+```{r, echo=FALSE}
+word_cloud2 = wordcloud2(words2, size =0.8, color=rep_len(c("grey","skyblue"), nrow(words2)))
+saveWidget(word_cloud2, "tmp.html", selfcontained = F)
+webshot("tmp.html", "word_cloud2.png", delay = 5)
+```
+
+\pagebreak
+
+This is the same data in a plot. First time I asked the question...
+
+```{r, echo=FALSE}
+lollipop_plot("keyTopics5")
+```
+
+and second time I asked the question:
+
+```{r, echo=FALSE}
+lollipop_plot("keyTopics3")
+```
+
+\pagebreak
+
+### Which countries or regions does the speech mention?
+
+Prompt: Which countries or regions does the speech transcript mention? Give a reply in the form of a comma separated list with the most mentioned country or region first. Do not write anything else.
+
+
+```{r, echo=FALSE}
+lollipop_plot("countries")
+```
+
+\pagebreak
+
+
+### What is the general sentiment of the speech?
+
+Prompt: What is the general sentiment of the speech?IGive a one or two word reply from one of the following five options: 'negative', 'slightly negative', 'neutral', 'slightly positive' or 'positive'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+ bar_plot("sentiment")
+```
+
+```{r, echo=FALSE}
+ bar_plot("sentiment", group="unctad_development_status")
+```
+\pagebreak
+
+
+### What issue or concern is the speech most worried about?
+
+Prompt: What issue or concern does the speech transcript express the most worry or concern about? Give a reply in one or two words. Do not write anything else.
+
+
+```{r, echo=FALSE}
+ lollipop_plot("concerns")
+```
+
+\pagebreak
+
+
+### Which crises does the speech mention?
+
+Prompt: Which crises does the speech transcript mention? Give a reply in the form of a comma-separated list with the most mentioned crisis first. Do not write anything else.
+
+
+```{r, echo=FALSE}
+  lollipop_plot("crises")
+```
+
+\pagebreak
+
+
+### Does the speech mention issues related to food supply?
+
+Prompt: Does the speech mention issues related to food supply? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+  bar_plot("crisisFood")
+```
+
+```{r, echo=FALSE}
+  bar_plot("crisisFood", group="unctad_development_status")
+```
+
+\pagebreak
+
+
+### Does the speech mention issues related to finance?
+
+Prompt: Does the speech mention issues related to finance? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("crisisFinance")
+```
+
+```{r, echo=FALSE}
+  bar_plot("crisisFinance", group="unctad_development_status")
+```
+\pagebreak
+
+
+### Does the speech mention issues related to energy supply?
+
+Prompt: Does the speech mention issues related to energy supply? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+ bar_plot("crisisEnergy")
+
+```
+
+```{r, echo=FALSE}
+
+bar_plot("crisisEnergy", group="unctad_development_status")
+```
+
+\pagebreak
+
+### Which other nations or international bodies does the speech criticize?
+
+Prompt: Which nations or international bodies does the speech transcript criticize? Give a reply in the form of a comma-separated list with the most criticized nation or body first. Do not write anything else.
+
+
+```{r, echo=FALSE}
+  lollipop_plot("criticise")
+```
+
+\pagebreak
+
+### Which other nations or international bodies does the speech praise?
+
+Prompt: Which nations or international bodies does the speech transcript praise? Give a reply in the form of a comma-separated list with the most praised nation or body first. Do not write anything else.
+
+```{r, echo=FALSE}
+  lollipop_plot("praise")
+```
+
+\pagebreak
+
+### Does the speech mention war or armed conflict?
+
+Prompt: Does the speech mention war or armed conflict? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+  bar_plot("conflict")
+```
+
+```{r, echo=FALSE}
+bar_plot("conflict", group="unctad_development_status")
+```
+\pagebreak
+
+### Does the speech mention the Israel Palestine conflict?
+
+Prompt: Does the speech transcript mention the Israel Palestine conflict or peace process? Give a one word reply. Answer either 'Yes' or 'No'.
+
+
+```{r, echo=FALSE}
+bar_plot("israelPalestineConflict")
+```
+
+```{r, echo=FALSE}
+bar_plot("israelPalestineConflict", group="unctad_development_status")
+```
+
+\pagebreak
+
+### Is the speech more supportive of Israel or Palestine? 
+
+Prompt: Is the speech transcript more supportive of Israel or Palestine? Give a reply from one of the following four options: 'Israel', 'Palestine',  'neither', 'both'. If the speech does not mention Israel or Palestine, answer 'neither'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("proIsraelPalestine")
+```
+
+```{r, echo=FALSE}
+bar_plot("proIsraelPalestine", group="unctad_development_status")
+```
+\pagebreak
+
+### Does the speech mention the conflict in Ukraine?
+
+Prompt: Does the speech mention the conflict in Ukraine? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("ukraineConflict")
+```
+
+```{r, echo=FALSE}
+bar_plot("ukraineConflict", group="unctad_development_status")
+```
+\pagebreak
+
+### Is the speech more supportive of Ukraine or Russia?
+
+Prompt: Is the speech more supportive of Ukraine or Russia? Give a reply from one of the following options: 'Ukraine', 'Russia', 'neutral'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("proUkraineConflict")
+```
+
+```{r, echo=FALSE}
+bar_plot("proUkraineConflict", group="unctad_development_status")
+```
+\pagebreak
+
+### Does the speech mention global climate change?
+
+Prompt: Does the speech mention global climate change? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("climateChange")
+```
+
+```{r, echo=FALSE}
+bar_plot("climateChange", group="unctad_development_status")
+```
+\pagebreak
+
+### Does the speech express concern about global climate change?
+
+Prompt: Does the speech express concern about global climate change? Does it think we need to do more to combat global climate change? Give a reply from one of the following options: 'says we need to do more', 'says we are doing enough', 'says we need to do less'. 'does not mention global climate change'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("combatClimate")
+```
+
+```{r, echo=FALSE}
+bar_plot("combatClimate", group="unctad_development_status")
+```
+\pagebreak
+
+### Does the speech mention gender equality or protecting women's rights?
+
+Prompt: Does the speech mention gender equality or protecting women's rights? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("gender")
+```
+
+```{r, echo=FALSE}
+bar_plot("gender", group="M.F")
+```
+\pagebreak
+
+### Does the speech mention Sustainable Development Goals (SDGs)?
+
+Prompt: Does the speech mention Sustainable Development Goals (SDGs)? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("SDG")
+```
+
+```{r, echo=FALSE}
+bar_plot("SDG", group="unctad_development_status")
+```
+
+\pagebreak
+
+### Does the speech advocate for Human rights? 
+
+Prompt: Does the speech advocate for human rights? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+```{r, echo=FALSE}
+bar_plot("humanRights")
+```
+
+```{r, echo=FALSE}
+bar_plot("humanRights", group="unctad_development_status")
+```
+\pagebreak
+
+### Does the speech emphasize the importance of international law, treaties, or agreements?
+
+Prompt: Does the speech emphasize the importance of international law, treaties, or agreements? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("internationalLaw")
+```
+
+```{r, echo=FALSE}
+bar_plot("internationalLaw", group="unctad_development_status")
+```
+\pagebreak
+
+### Does the speech mention debt relief?
+
+Prompt: Does the speech mention debt relief? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("debtRelief")
+
+```
+
+```{r, echo=FALSE}
+bar_plot("debtRelief", group="unctad_development_status")
+
+```
+\pagebreak
+
+### Which international alliances with specific countries or regions does the speech advocate strengthening?
+
+Prompt: Which international alliances with specific countries or regions does the speech transcript advocate strengthening? Give a reply in the form of a comma-separated list with the most emphasized alliance or region first. Do not write anything else.
+
+
+
+```{r, echo=FALSE}
+lollipop_plot("alliances")
+```
+
+\pagebreak
+
+### Does the speech discuss migration, asylum, or refugee crises?
+
+Prompt: Does the speech discuss migration, asylum, or refugee crises? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("migration")
+```
+
+```{r, echo=FALSE}
+bar_plot("migration", group="unctad_development_status")
+
+```
+\pagebreak
+
+### Which global health issues like pandemics, healthcare access, or diseases does the speech mention?
+
+Prompt: Which global health issues like pandemics, healthcare access, or diseases does the speech transcript mention? Give a reply in the form of a comma-separated list with the most mentioned issue first. Do not write anything else.
+
+
+```{r, echo=FALSE}
+lollipop_plot("health")
+```
+
+\pagebreak
+
+### Does the speech mention nuclear weapons, disarmament, or non-proliferation?
+
+Prompt: Does the speech mention nuclear weapons, disarmament, or non-proliferation? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("nuclear")
+```
+
+```{r, echo=FALSE}
+bar_plot("nuclear", group="unctad_development_status")
+```
+\pagebreak
+
+### Does the speech mention global terrorism, radicalization, or counterterrorism strategies?
+
+Prompt: Does the speech mention global terrorism, radicalization, or counterterrorism strategies? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+
+```{r, echo=FALSE}
+bar_plot("terrorism")
+
+```
+
+```{r, echo=FALSE}
+bar_plot("terrorism", group="unctad_development_status")
+
+```
+\pagebreak
+
+### Which historical events does the speech mention?
+
+Prompt: Which historical events does the speech transcript mention? Give a reply in the form of a comma-separated list with the most mentioned event first. Do not write anything else.
+
+
+```{r, echo=FALSE}
+  lollipop_plot("historicalEvents")
+```
+
+
+\pagebreak
+
+### Which international sanctions or trade embargoes does the speech support?
+
+Prompt: Which international sanctions or trade embargoes does the speech support? Give a reply in the form of a comma-separated list with the most supported sanction or embargo first. Do not write anything else.
+
+ 
+
+no graph
+```{r, echo=FALSE}
+
+```
+
+\pagebreak
+
+### Which international sanctions or trade embargoes does the speech criticize?
+
+Prompt: Which international sanctions or trade embargoes does the speech criticize? Give a reply in the form of a comma-separated list with the most criticized sanction or embargo first. Do not write anything else.
+
+
+
+no graph
+```{r, echo=FALSE}
+        
+```
+
+
+

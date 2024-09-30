@@ -1,0 +1,574 @@
+---
+title: "How has maritime trade changed following the Ukraine conflict?"
+subtitle: "Initial analysis using sea live port calling data"
+output: 
+  html_document:
+    toc: true
+date: "`r Sys.Date()`"
+runtime: shiny
+author: Ed
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Source the arrow_plot function from the external .R file
+library(shinyWidgets)
+library(plotly)
+source("big_picture.R")
+library(DT)
+
+# Define a custom theme with specific font sizes
+custom_theme <- theme_minimal() +
+  theme(
+  axis.title = element_text(size = 20),  # Font size for axis titles
+  axis.text = element_text(size = 16),    # Font size for axis text
+  plot.title = element_text(size = 22, face = "bold"),
+  legend.title = element_text(size = 12),
+  legend.text = element_text(size = 10),
+  strip.text = element_text(size = 12)
+)
+
+```
+
+```{css, echo=FALSE}
+<style>
+  .plot-container {
+    margin-bottom: 20px; /* Add space below the plot */
+    border-style: solid;
+    #border-color: red;
+    padding: 10px; /* Add padding to make the border visible */
+  }
+  .plot-side-by-side-wrapper {
+    display: flex; /* Use flexbox for layout */
+    gap: 20px; /* Optional: add space between the plots */
+  }
+  
+  .plot-side-by-side {
+    flex: 1; /* Ensure the containers take equal space */
+    border-style: solid;
+    #border-color: red;
+    padding: 10px; /* Add padding to make the border visible */
+  }
+  .custom-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    min-width: 900px;
+    #border-style: solid;
+    #border-color: yellow;
+  }
+  .custom-panel .col {
+    flex: 1;
+    min-width: 200px;
+    #border-style: solid;
+    #border-color: blue;
+  }
+</style>
+
+```
+
+## Timeline
+
+- 2014: [Russia bans food imports from Australia, US, EU](https://www.abc.net.au/news/2014-08-07/russia-bans-food-imports-from-australia-us-eu/5656434)
+- 2022-202? covid caused a shock to the shipping system
+- February 2022: full scale conflict in Ukraine
+- since October 2023: Red Sea Crisis  
+
+![Containerized Freight Index, Source:[trading economics](https://tradingeconomics.com/commodity/containerized-freight-index#stats)](pics/shipping_prices.png){width=900px}
+
+
+## Big picture
+
+- World maritime trade has increased 15% from 2019 to 2023
+
+```{r, echo=FALSE}
+
+world_sum =  region1_df %>% 
+    group_by(year) %>% 
+    summarize(
+      voyages = sum(voyages) %>% round(2),
+      vessels = sum(vessels)%>% round(2),
+      DWT = (sum(DWT, na.rm=T)/1000000)%>%round(2)
+    ) %>% 
+    filter(year %in% c("2019-01-01", "2023-01-01")) %>% 
+    gather(var, value, -year) %>% 
+    spread(year, value) %>% 
+    mutate(growth = (`2023-01-01` / `2019-01-01`)%>% round(2)) 
+datatable(world_sum)
+```
+
+```{r big_picture, echo=FALSE}
+
+inputPanel(
+  div(class = "custom-panel",
+      div(class = "col", selectInput("region1", "Region:", choices = c("to_country", "to_region1", "to_region2"),
+                                     selected="to_region1")),
+      div(class = "col", selectInput("tradeMetric1", "Trade Metric:", choices = c("DWT", "vessels", "voyages"),
+                                     selected="DWT")),
+      div(class = "col", textInput("ncountries1", "Number Regions", value = 20)),
+      div(class = "col", checkboxInput("as_percent1", "Display as Percent", 
+                        value = FALSE),)
+      )
+  )
+
+# Create a UI component to wrap the plot output
+output$plot_trade_by_region_bar <- renderPlot({
+    plot1 = trade_by_region_bar(
+      data = dataframe, 
+      region = input$region1,
+      tradeMetric = input$tradeMetric1,
+      ncountries = input$ncountries1,
+      as_percent = input$as_percent1,
+      year.=2019) + custom_theme
+    plot2 = trade_by_region_bar(
+      data = dataframe,  
+      region = input$region1,
+      tradeMetric = input$tradeMetric1,
+      ncountries = input$ncountries1,
+      as_percent = input$as_percent1,
+      year.=2023) + custom_theme
+    combine_plots(plot1, plot2) 
+})  
+
+# Insert the plotOutput into a div with the class "plot-container"
+tags$div(class = "plot-container",
+         plotOutput("plot_trade_by_region_bar", width = "100%", height = "600px")
+)
+```
+
+
+
+```{r, echo=FALSE}
+
+rus_stats = dataframe %>% 
+  filter(to_country =="RUS") %>% 
+  group_by(year) %>% 
+  summarize(
+    mean_DWT = mean(DWT, na.rm=T) %>% round(2),
+    voyages = n() %>% round(2),
+    vessels = n_distinct(imo) %>% round(2),
+    DWT_millions = (sum(DWT, na.rm=T)/1000000) %>% round(2)
+  ) %>% 
+  ungroup()
+# Display the dataframe with datatable
+datatable(rus_stats)
+```
+
+#### Results
+- Ukraine maritime trade has collapsed
+- Russian maritime trade has not
+
+```{r, echo=FALSE}
+inputPanel(
+  div(class = "custom-panel",
+      div(class = "col", sliderInput("year1B", "Year:", min = 2019, max = 2024, value = 2019, step=1, sep="")),
+      div(class = "col", selectInput("metric1B", "Trade Metric:", choices = c("DWT", "vessels", "voyages"))),
+      div(class = "col", textInput("ncountries1B", "Number of Countries:", value = "all")),
+      div(class = "col", selectInput("showDomestic1B", "Show Domestic:", choices = c("Combine", "Separate", "InternationalOnly")))
+  )
+)
+
+# Create a UI component to wrap the plot output
+output$plot_bar_chart_by_country <- renderPlot({
+    plot = bar_chart_by_country(
+      year = input$year1B,
+      metric = input$metric1B,
+      ncountries = if (input$ncountries1B == "All") "all" else input$ncountries1B,
+      showDomestic = input$showDomestic1B
+    ) + custom_theme + theme(axis.text.x = element_text(angle = -90, hjust = 0.5, vjust = 0.5)) 
+    plot  #%>% ggplotly() %>% layout(width = 900, height = 600, showlegend = FALSE)
+})
+
+tags$div(class = "plot-container",
+         plotOutput("plot_bar_chart_by_country", width = "100%", height = "600px")
+)
+
+```
+
+## Comparing countries over time
+
+#### Results
+- Russia maritime trade has stayed constant.. who to compare it to?
+- Who Russia trades with has changed 
+- Ukraine maritime trade is recovering but remains well below pre-war levels
+
+```{r line_graph, echo=FALSE}
+countries <- c("UN", 
+               "CN", "SG", "MY", "BN", "JP", "AU", "US", "CA", "IR", "OM", 
+"BD", "PG", "VN", "KR", "TW", "HK", "ID", "ZA", "SN", "PH", "RU", 
+"EG", "IL", "TR", "RO", "IT", "MC", "GR", "BG", "IN", "LK", "MT", 
+"SA", "NL", "BE", "TH", "FR", "DE", "KH", "MM", "KW", "IQ", "KI", 
+"MH", "MX", "AE", "BJ", "GH", "DJ", "MZ", "SC", "GN", "SB", "GY", 
+"BB", "LC", "ES", "CH", "AO", "YE", "GE", "UA", "MU", "GW", "AS", 
+"PL", "IS", "NO", "MA", "TG", "NG", "SE", "DK", "GB", "GA", "SO", 
+"CM", "TT", "BS", "HR", "FI", "PA", "EC", "AR", "VE", "VC", "SR", 
+"GD", "KN", "TC", "AG", "HT", "ME", "AT", "HU", "SK", "ST", "VG", 
+"DO", "BZ", "PT", "HN", "CO", "CR", "BR", "NI", "AL", "EE", "SD", 
+"LB", "JO", "LY", "CY", "QA", "CL", "LV", "LT", "SY", "MD", "CI", 
+"TN", "DZ", "FO", "GL", "UY", "IE", "KM", "TZ", "LR", "CV", "BH", 
+"TM", "AZ", "KZ", "SI", "GI", "PY", "KY", "CU", "JM", "KP", "MR", 
+"GQ", "KE", "RS", "PK", "MS", "MV", "GU", "CG", "GM", "FK", "EH", 
+"SL", "MG", "AW", "PE", "PF", "NZ", "DM", "BM", "ER", "SV", "CD", 
+"MO", "WS", "FJ", "TO", "FM", "TL", "NC", "TV", "GT", "VU", "NR", 
+"MP", "PW", "NU", "CK", "SH", "WF") %>% tolower()
+countries2 <- c("topN", 
+                "CHN", "SGP", "MYS", "BRN", "JPN", "AUS", "USA", "CAN", "IRN", 
+"OMN", "BGD", "PNG", "VNM", "KOR", "TWN", "HKG", "IDN", "ZAF", 
+"SEN", "PHL", "RUS", "EGY", "ISR", "TUR", "ROU", "ITA", "MCO", 
+"GRC", "BGR", "IND", "LKA", "MLT", "SAU", "NLD", "BEL", "THA", 
+"FRA", "DEU", "KHM", "MMR", "KWT", "IRQ", "KIR", "MHL", "MEX", 
+"ARE", "BEN", "GHA", "DJI", "MOZ", "SYC", "GIN", "SLB", "GUY", 
+"BRB", "LCA", "ESP", "CHE", "AGO", "YEM", "GEO", "UKR", "MUS", 
+"GNB", "ASM", "POL", "ISL", "NOR", "MAR", "TGO", "NGA", "SWE", 
+"DNK", "GBR", "GAB", "SOM", "CMR", "TTO", "BHS", "HRV", "FIN", 
+"PAN", "ECU", "ARG", "VEN", "VCT", "SUR", "GRD", "KNA", "TCA", 
+"ATG", "HTI", "MNE", "AUT", "HUN", "SVK", "STP", "VGB", "DOM", 
+"BLZ", "PRT", "HND", "COL", "CRI", "BRA", "NIC", "ALB", "EST", 
+"SDN", "LBN", "JOR", "LBY", "CYP", "QAT", "CHL", "LVA", "LTU", 
+"SYR", "MDA", "CIV", "TUN", "DZA", "FRO", "GRL", "URY", "IRL", 
+"COM", "TZA", "LBR", "CPV", "BHR", "TKM", "AZE", "KAZ", "SVN", 
+"GIB", "PRY", "CYM", "CUB", "JAM", "PRK", "MRT", "GNQ", "KEN", 
+"SRB", "PAK", "MSR", "MDV", "GUM", "COG", "GMB", "FLK", "ESH", 
+"SLE", "MDG", "ABW", "PER", "PYF", "NZL", "DMA", "BMU", "ERI", 
+"SLV", "COD", "MAC", "WSM", "FJI", "TON", "FSM", "TLS", "NCL", 
+"TUV", "GTM", "VUT", "NRU", "MNP", "PLW", "NIU", "COK", "SHN", 
+"WLF")
+img_urls <- paste0(
+  'https://cdn.rawgit.com/lipis/flag-icon-css/master/flags/4x3/',
+  countries, '.svg'
+)
+
+inputPanel(
+  div(class = "custom-panel",
+      div(class = "col",
+          selectInput("metric_line2", "Trade Metric:", choices = c("DWT", "vessels", "voyages")),
+          selectInput("growth2", "Values:", choices = c("absolute", "since2019")),
+          selectInput("granularity2", "Granularity:", choices = c("year", "month", "week"))
+          ),
+      div(class = "col",
+          numericInput("ncountries_line2", "Number Countries:", value=20),
+          selectInput("showDomestic2", "Show Domestic:", choices = c("InternationalOnly", "IncludeDomestic")),
+          textInput("focusOn2", "From Country:", value = "all")
+          ),
+      div(class = "col",
+          multiInput(inputId = "countries_line2", label = "To Country :", 
+             choices = NULL,
+             choiceNames = lapply(seq_along(countries2), function(i) {
+               tagList(
+                 tags$img(src = img_urls[i], width = 20, height = 15),
+                 countries2[i]
+               )}),
+             choiceValues = countries2,
+             selected = c(c("BRA", "IND", "RUS", "ZAF", "UKR")))
+          )
+)
+)
+
+# Create a UI component to wrap the plot output
+output$plotly_plot1 <- renderPlotly({
+  plot_type <- input$plot_type1
+  
+    plot = line_chart_by_country(
+      metric = input$metric_line2,
+      ncountries = as.numeric(input$ncountries_line2),
+      countries = input$countries_line2,
+      growth = input$growth2,
+      granularity = input$granularity2,
+      showDomestic = input$showDomestic2,
+      focusOn = input$focusOn2
+    ) + custom_theme 
+    plot = plot %>% ggplotly()
+    plot %>% layout(width = 900, height = 600)  # Set width and height here
+  
+})
+
+# Insert the plotlyOutput into a div with the class "plot-container"
+tags$div(class = "plot-container",
+         plotlyOutput("plotly_plot1", width = "100%", height = "600px")
+)
+
+```
+
+
+## Heatmaps
+```{r setup2, include=FALSE}
+source("heatmap.R")
+```
+
+```{r heatmap, echo=FALSE}
+inputPanel(
+  # year., region.="region2", tradeMetric="DWT", ncountries=20
+  div(class = "custom-panel",
+      div(class = "col", sliderInput("year.Heat", "Year:", min = 2019, max = 2024, value = 2019, step=1, sep="")),
+      div(class = "col", selectInput("tradeMetricHeat", "Trade Metric:", choices = c("DWT", "vessels", "voyages"))),
+      div(class = "col", textInput("ncountriesHeat", "Number of Countries:", value = "15")),
+      div(class = "col", selectInput("region.Heat", "Region:", choices = c("region2", "region1", "country")))
+  )
+  )
+
+# Create a UI component to wrap the plot output
+output$plotly_plot2 <- renderPlot({
+  plot <- heatmap_by_year(year. = input$year.Heat,
+                          region. = input$region.Heat,
+                          tradeMetric = input$tradeMetricHeat,
+                          ncountries = input$ncountriesHeat) + custom_theme +
+    theme(axis.text.x = element_text(angle = -90, hjust = 0.5, vjust = 0.5))
+  #plot = plot %>% ggplotly()
+  plot #%>% layout(width = 900, height = 600)  # Set width and height here
+  })
+
+# Insert the plotlyOutput into a div with the class "plot-container"
+tags$div(class = "plot-container",
+         plotOutput("plotly_plot2", width = "100%", height = "600px")
+)
+
+```
+
+
+## Focus on Russia
+```{r setup3, include=FALSE}
+source("focusRussia.R")
+```
+
+```{r absoluteChangeBar, fig.width=10, fig.height=5, echo=FALSE}
+plot = absolute_change_bar + custom_theme + theme(axis.text.x = element_text(angle = -90, hjust = 0.5, vjust = 0.5))
+plot %>% ggplotly()
+```
+
+```{r focusRussia, echo=FALSE}
+inputPanel(
+  div(class = "custom-panel",
+      
+      
+      div(class = "col", 
+          # Input for selecting the region
+          selectInput("region", "Region:", 
+                      choices = c("country", "region1", "region2", "port"), 
+                      selected = "country"),
+          # Input for selecting 'to' or 'from'
+          selectInput("to_or_from", "Trade Direction:", 
+                      choices = c("to", "from"), 
+                      selected = "from"),
+          # Input for specifying the focus country
+          textInput("focus", "Focus Country:", 
+                    value = "RUS")
+      ),
+      
+    
+      div(class = "col", 
+          # Input for selecting the trade metric
+          selectInput("metric", "Trade Metric:", 
+                      choices = c("DWT", "vessels", "voyages"), 
+                      selected = "DWT"),
+          # Checkbox for determining if data should be displayed as percentages
+          checkboxInput("as_percent", "Display as Percent", 
+                        value = FALSE),
+          # Numeric input for the maximum number of regions to display
+          numericInput("maxRegions", "Max Regions:", 
+                       value = 30, min = 1),
+          # Input for selecting the vessel type
+          selectInput("vessel_type.", "Vessel Type:", 
+                      choices = c("all", "Barge&Inland", "Bulker", "CarCarrier", "CombinedCarriers",
+                                  "Containerships", "GeneralCargo", "LNG", "LPG", "MPP", "Reefer",
+                                  "Ro-Ro", "Tanker")), 
+                      selected = "all"),
+
+      # Slider inputs for selecting the year range
+      div(class = "col", 
+          sliderInput("year_from", "Year From:", 
+                      min = 2019, max = 2024, value = 2019, step = 1, sep = ""),
+          sliderInput("year_to", "Year To:", 
+                      min = 2019, max = 2024, value = 2023, step = 1, sep = "")
+      )
+  )
+  )
+
+
+# Create a UI component to wrap the plot output
+output$plot3 <- renderPlot({
+  
+  plot <- arrow_plot(region=input$region,  
+                     to_or_from = input$to_or_from, 
+                     focus=input$focus, 
+                     year_from=input$year_from, 
+                     year_to=input$year_to, 
+                     metric=input$metric, 
+                     maxRegions=input$maxRegions, 
+                     vessel_type.=input$vessel_type., 
+                     as_percent=input$as_percent)
+  plot + custom_theme
+  })
+
+# Insert the Output into a div with the class "plot-container"
+tags$div(class = "plot-container",
+         plotOutput("plot3", width = "100%", height = "600px")
+)
+```
+
+## Maps
+```{r setup5, include=FALSE}
+source("maps.R")
+```
+
+```{r map, echo=FALSE}
+
+# plot section 5 year.="2019", ncountries=20, to_or_from="to", focus="RUS"
+
+inputPanel(
+  div(class = "custom-panel",
+      
+      
+      div(class = "col", 
+          # Input for selecting 'to' or 'from'
+          selectInput("to_or_from5", "Trade Direction:", 
+                      choices = c("to", "from"), 
+                      selected = "from"),
+          # Input for specifying the focus country
+          textInput("focus5", "Focus Country:", 
+                    value = "RUS")
+      ),
+      
+    
+      div(class = "col", 
+          # Input for selecting the trade metric - maybe add these feature
+          #selectInput("tradeMetric5", "Trade Metric:", 
+          #            choices = c("DWT", "vessels", "voyages"), 
+          #            selected = "DWT"),
+          # Checkbox for determining if data should be displayed as percentages
+          #checkboxInput("as_percent4", "Display as Percent", 
+          #              value = FALSE),
+          # Numeric input for the maximum number of regions to display
+          numericInput("ncountries5", "Max Regions:", 
+                       value = 20, min = 1)
+          ),
+
+      # Slider inputs for selecting the year range
+      div(class = "col", 
+          sliderInput("year.5", "Year From:", 
+                      min = 2019, max = 2024, value = 2019, step = 1, sep = "")
+      )
+  )
+  )
+
+# Create a UI component to wrap the plot output
+output$plot5 <- renderPlotly({
+  
+  #year.="2019", ncountries=20, to_or_from="to", focus="RUS"
+  plot = trade_map(year.=input$year.5,
+                   ncountries=input$ncountries5,
+                   to_or_from=input$to_or_from5,
+                   focus=input$focus5) + custom_theme
+plot  %>% ggplotly
+  })
+
+# Insert the Output into a div with the class "plot-container"
+tags$div(class = "plot-container",
+         plotlyOutput("plot5", width = "100%", height = "600px")
+)
+```
+
+
+## Second degree destinations
+```{r setup4, include=FALSE}
+source("beyond_first_port.R")
+```
+
+```{r secondPorts, echo=FALSE}
+
+# plot section 4
+
+inputPanel(
+  div(class = "custom-panel",
+      
+      
+      div(class = "col", 
+          # Input for selecting port
+          textInput("port4", "Port:", value = "West Port Said"),
+          # Input for selecting 'to' or 'from'
+          selectInput("to_or_from4", "Trade Direction:", 
+                      choices = c("going on to", "where originally from"), 
+                      selected = "where originally from"),
+          # Input for specifying the focus country
+          textInput("focus4", "Focus Country:", 
+                    value = "RUS")
+      ),
+      
+    
+      div(class = "col", 
+          # Input for selecting the trade metric
+          selectInput("tradeMetric4", "Trade Metric:", 
+                      choices = c("DWT", "vessels", "voyages"), 
+                      selected = "DWT"),
+          # Checkbox for determining if data should be displayed as percentages
+          checkboxInput("as_percent4", "Display as Percent", 
+                        value = FALSE),
+          # Numeric input for the maximum number of regions to display
+          numericInput("ncountries4", "Max Regions:", 
+                       value = 20, min = 1)
+          ),
+
+      # Slider inputs for selecting the year range
+      div(class = "col", 
+          sliderInput("year_from4", "Year From:", 
+                      min = 2019, max = 2024, value = 2019, step = 1, sep = ""),
+          sliderInput("year_to4", "Year To:", 
+                      min = 2019, max = 2024, value = 2023, step = 1, sep = "")
+      )
+  )
+  )
+
+# Create a UI component to wrap the plot output
+output$plot4 <- renderPlot({
+
+  if(input$to_or_from4 == "going on to"){
+    plot1 = where_beyond(country_from=input$focus4, 
+                          port=input$port4, 
+                          year=input$year_from4, 
+                          as_percent=input$as_percent4)
+    plot2 = where_beyond(country_from=input$focus4, 
+                          port=input$port4, 
+                          year=input$year_to4, 
+                          as_percent=input$as_percent4)
+    
+  } else if (input$to_or_from4 == "where originally from"){
+    plot1 = where_originally_from(country_to=input$focus4, 
+                              port=input$port4, 
+                              year=input$year_from4, 
+                              as_percent=input$as_percent4)
+    plot2 = where_originally_from(country_to=input$focus4, 
+                              port=input$port4, 
+                              year=input$year_to4, 
+                              as_percent=input$as_percent4)
+  } 
+
+  y_limits_plot1 <- ggplot_build(plot1)$layout$panel_params[[1]]$y.range
+  y_limits_plot2 <- ggplot_build(plot2)$layout$panel_params[[1]]$y.range
+  common_y_min <- min(y_limits_plot1[1], y_limits_plot2[1])
+  common_y_max <- max(y_limits_plot1[2], y_limits_plot2[2])
+  plot1 <- plot1 + 
+    ylim(common_y_min, common_y_max) +
+    custom_theme +
+    theme(axis.text.x = element_text(angle = -90, hjust = 0.5, vjust = 0.5))
+  plot2 <- plot2 + 
+    ylim(common_y_min, common_y_max) + theme(axis.title.y = element_blank()) +
+    custom_theme +
+    theme(axis.text.x = element_text(angle = -90, hjust = 0.5, vjust = 0.5))
+  if(input$to_or_from4 == "where originally from"){
+    title = paste0("Where did vessels going to ", input$focus4, " from ", input$port4, " originally come from?")
+  } else {
+    title = paste0("Where do vessels going from ", input$focus4, " to ", input$port4, " travel on to?")
+  }
+  combined_plot <- plot1 + plot2 + 
+      plot_layout(guides = "collect") + 
+      plot_annotation(title,
+                      theme=custom_theme)
+combined_plot 
+  })
+
+# Insert the Output into a div with the class "plot-container"
+tags$div(class = "plot-container",
+         plotOutput("plot4", width = "100%", height = "600px")
+)
+```
+
+

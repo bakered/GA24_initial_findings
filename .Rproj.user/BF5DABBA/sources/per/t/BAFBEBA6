@@ -1,0 +1,27 @@
+{
+    "id": "BAFBEBA6",
+    "path": "~/UN_projects/GA24/text_analysis.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "62463940",
+    "contents": "",
+    "dirty": false,
+    "created": 1727446734322.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "71,0",
+        "scrollLine": "62"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1727444908,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1727444908,
+    "read_only": false,
+    "read_only_alternatives": []
+}

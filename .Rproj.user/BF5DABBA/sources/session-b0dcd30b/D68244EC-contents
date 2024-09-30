@@ -1,0 +1,442 @@
+---
+title: "Notes on Gdelt"
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, escape = FALSE)
+output <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+print(output)
+library(flextable)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+source("gkg_themes.R")
+
+if (output == "latex") {
+  cat("
+  \\tolerance=1
+  \\emergencystretch=\\maxdimen
+  \\hyphenpenalty=5000
+  \\hbadness=10000
+  ")
+}
+
+```
+
+## Data
+
+* There are 1.6 billion articles as of 31.08.24 (1593944255)
+* from February 2015
+
+```{r}
+time_plot
+```
+
+* Currently there are ~400 thousand articles a day or ~12 million a month.  
+* The number articles per month seems to have halved since 2016. Not sure if this would effect us. 
+
+```{r, fig.height=7}
+country_plot
+```
+
+
+## What are the themes?
+
+* There are 62287 themes including 17228 languages, 12767 types of bird, and 8877 types of disease. 
+* But we can group these into 57 groups of which the perhaps the following 17 are interesting for us
+
+### Interesting groups for us
+
+The following table shows number of articles in each group of themes of one particular day (414000 articles).
+
+```{r, echo=FALSE}
+# Create a flextable
+table <- interestingGroups %>% 
+  mutate(articles = (articles/1000) %>% round(0)) %>% 
+  rename(
+    `Group`= group,
+    `Number sub- themes` = subthemes,
+    `Articles (thousands, double counted)` = articles,
+    `Group info` = group_info
+  ) 
+ft = table %>%   
+  flextable %>% 
+  #autofit %>% 
+  width(width=1) %>% 
+  width(width = 1.5, j = 1) %>%   
+  width(width = 1, j = 2) %>%
+  width(width = 1, j = 3) %>%
+  width(width = 3, j = 4) %>% 
+  fontsize(size=9) %>% 
+  theme_box()
+ft
+```
+
+
+
+* Some themes are unions of other themes. E.g. TAX_DISEASE is a union of the set 
+    - TAX_DISEASE_CORONOVIRUS, 
+    - TAX_DISEASE_CANCER,
+    - and the 8526 other disease sets. 
+* This is true for all of the TAX_{theme} in the table above. So TAX_FOODSTAPLES is also a union of all TAX_FOODSTAPLES_\{SUBTHEME\}.
+* Some themes are nearly identical. E.g. 
+    - LOCUSTS, 
+    - NATURAL_DISASTER_LOCUSTS, 
+    - TAX_WORLDINSECTS_LOCUSTS, 
+    - TAX_AGRICULHARMINSECTS_LOCUSTS.
+* Therefore, we can save on processing time if we cut out duplicate themes
+
+## How do we know what the themes are about?
+
+Information on the themes come from four sources:  
+1. the name of the theme itself.  
+2. the data contains character counts of where the trigger for a particular theme is, so we can check which word or phrase caused the article to be categorised in this theme.  
+3. checking the perception index to see how it responds to events in the past.  
+4. some groups of themes have further information which documents which words trigger a categorisation.  
+
+## World Bank Taxonomies
+
+More info on the world bank themes can be foudn in the [World Bank Theme Taxonomy](https://thedocs.worldbank.org/en/doc/275841490966525495-0290022017/original/NewThemeTaxonomyanddefinitionsrevisedJuly012016.pdf). It is not a list of keywords used, and not all gdelt themes are mentioned, but many gdelt themes are defined.  
+
+## The United Nations Global Pulse (UNGP) Taxonomies on Sustainable Development Goals (SDGs)
+
+See [here](https://gist.github.com/renecnielsen/1976323ad449cad5dcd7) for the full list of words in each theme.
+
+```{r, echo=FALSE}
+ft <- ungp_themes %>% 
+  flextable %>% 
+  autofit %>% 
+  width(width = 3.5, j = 1) %>%   
+  width(width = 2.5, j = 2) %>%
+  fontsize(size=9) %>% 
+  theme_box()
+ft
+```
+
+
+## Our Initial Selected Themes
+
+Themes with high number of articles indicates they have very broad taxonomies and will tend to dominate the index and themes with very low number of articles are not worth the computing time.
+
+```{r, echo=FALSE, results='asis'}
+tables <- list()
+if(output=="latex"){
+  narticles = 414436
+ for(group3 in names(levelgroup3_themes)){
+  cat("Group: ", group3, "\n")
+  group3themes <- levelgroup3_themes[[group3]]
+  # Convert group3themes to a dataframe
+  group3themes_df <- data.frame(theme = group3themes)
+  # Perform a left join to include all themes from group3themes
+  selection <- group3themes_df %>%
+    left_join(full_themes, by = "theme") %>%   # Join to include all themes from group3themes
+    select(-types) %>%                         # Remove the 'types' column
+    arrange(match(theme, group3themes))        # Arrange in the order of group3themes
+  ft = selection %>%
+    mutate(articles = ((articles/narticles)*100) %>% round(3),
+           theme = theme %>% str_replace_all("_", " "),
+           group = group %>% str_replace_all("_", " ")) %>%
+    rename(`articles (percent)` = articles) %>%
+    kable("latex", escape = FALSE, booktabs = TRUE, longtable = TRUE) %>%
+    column_spec(1, width = "7cm") %>%
+    column_spec(2, color="white", background = spec_color(selection$articles, option = "D"))
+# Add table to the list
+  tables[[group3]] <- ft
+  print(ft)
+}
+} else {
+ft <- initial_selection %>% 
+  mutate(articles = (articles/1000) %>% round(3)) %>% 
+  rename(
+    `articles (thousands)` = articles
+  ) %>% 
+  flextable %>% 
+  autofit %>% 
+  #width(width=1) %>% 
+  #width(width = 1.5, j = 1) %>%   
+  #width(width = 1, j = 2) %>%
+  fontsize(size=9) %>% 
+  theme_box()
+ft
+}
+```
+
+## Overlapping themes
+### climate change
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("climate_change")
+```
+
+### chronic
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("chronic")
+```
+
+### communicable
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("communicable")
+```
+
+### zoonotic
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("zoonotic")
+```
+
+### covid
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("covid")
+```
+
+### disease_burden
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("disease_burden")
+```
+
+### disease_emergency
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("disease_emergency")
+```
+
+### disease_general
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("disease_general")
+```
+
+
+### epidemic_pandemic
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("epidemic_pandemic")
+```
+
+### disease_other
+```{r, echo=FALSE, fig.height=5}
+plot_heatmap("disease_other")
+```
+
+### agriculture_stress
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("agriculture_stress")
+```
+
+### food_security
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("food_security")
+```
+
+### care_unpaid
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("care_unpaid")
+```
+
+### gender_development
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("gender_development")
+```
+
+### empowerment
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("empowerment")
+```
+
+### gender_general
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("gender_general")
+```
+
+### gender_violence
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("gender_violence")
+```
+
+### labour_market
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("labour_market")
+```
+
+### representation
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("representation")
+```
+
+### reproductive_health
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("reproductive_health")
+```
+
+### cold
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("cold")
+```
+
+### drought
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("drought")
+```
+
+### earthquake
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("earthquake")
+```
+
+### fire
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("fire")
+```
+
+### flood
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("flood")
+```
+
+### heatwave
+```{r, echo=FALSE, fig.height=3}
+plot_heatmap("heatwave")
+```
+
+### storm
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("storm")
+```
+
+### volcano
+```{r, echo=FALSE, fig.height=3}
+plot_heatmap("volcano")
+```
+
+### unrest
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("unrest")
+```
+
+### conflict_violence
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("conflict_violence")
+```
+
+### crime
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("crime")
+```
+
+### human_rights
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("human_rights")
+```
+
+### peace
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("peace")
+```
+
+### terrorism
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("terrorism")
+```
+
+### war
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("war")
+```
+
+### weapons
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("weapons")
+```
+
+### debt
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("debt")
+```
+
+### uneployment
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("uneployment")
+```
+
+### prices
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("prices")
+```
+
+### growth
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("growth")
+```
+
+### trade
+```{r, echo=FALSE, fig.height=4}
+plot_heatmap("trade")
+```
+
+### vulnerability
+```{r, echo=FALSE, fig.height=6}
+plot_heatmap("vulnerability")
+```
+
+
+## Full list of groups of themes
+
+The following shows a full list of the 65 groups of themes in order of number of articles in that theme. If an article is included in two of the subthemes then it gets counted twice. 
+
+```{r, echo=FALSE}
+# Create a flextable
+table <- freq_table %>% 
+  mutate(articles = (articles/1000) %>% round(0)) %>% 
+  rename(
+    `Group`= group,
+    `Sub- themes` = subthemes,
+    `Articles (thousands, double counted)` = articles,
+    `Group info` = group_info
+  ) 
+if(output=="latex"){
+  ft = table %>%   
+  flextable %>% 
+  #autofit %>% 
+  width(width=1) %>% 
+  width(width = 1.5, j = 1) %>%   
+  width(width = 1, j = 2) %>%
+  width(width = 1, j = 3) %>%
+  width(width = 3, j = 4) %>% 
+  fontsize(size=9) %>% 
+  theme_box()
+ft
+} else {
+ft = table %>%   
+  flextable %>% 
+  #autofit %>% 
+  width(width=1) %>% 
+  width(width = 1.5, j = 1) %>%   
+  width(width = 1, j = 2) %>%
+  width(width = 1, j = 3) %>%
+  width(width = 3, j = 4) %>% 
+  fontsize(size=9) %>% 
+  theme_box()
+ft
+}
+```
+
+## Single Themes (164)
+
+```{r, echo=FALSE}
+ft <- singleThemes %>% 
+  mutate(articles = (articles/1000) %>% round(3)) %>% 
+  rename(
+    `articles (thousands)` = articles
+  ) %>% 
+  flextable %>% 
+  autofit %>% 
+  #width(width=1) %>% 
+  #width(width = 1.5, j = 1) %>%   
+  #width(width = 1, j = 2) %>%
+  fontsize(size=9) %>% 
+  theme_box()
+ft
+```
+
+
+end of note 

@@ -1,0 +1,391 @@
+---
+title: "GA24 Initial Findings"
+editor: visual
+mainfont: "Helvetica"
+---
+
+```{r, include=FALSE}
+source("/Users/edbaker/UN_projects/GA24/GA24_quarto/r_helper_objects/GA24_setup.R")
+```
+
+## Top 200 Words
+The average mentions per speech by subgroup:
+```{r, echo=FALSE}
+library(kableExtra)
+library(dplyr)
+library(scales)
+
+top200 = readRDS(file = "r_helper_objects/top200.RDS")
+top200 %>%
+  mutate(across(where(is.numeric), ~ round(., 1))) %>%  
+  kable(col.names = NULL) %>%  
+  add_header_above(c("word"=1, "all"=2, "M"=1, "F"=1, "Developed"=1, "D'ing A&O"=1, 
+"LA&TC"=1, "Africa"=1, "LDC"=1, "LLDC"=1, "SIDS"=1)) %>%  
+  add_header_above(c(" " = 1, "absolute" = 1, "per speech" = 10)) %>% 
+  kable_styling() %>% 
+  column_spec(2, color="white", background = spec_color(top200$all_absolute, option = "D")) %>% 
+  column_spec(3, color="white", background = spec_color(top200$all, option = "D")) %>% 
+  column_spec(4, color="white",background = spec_color(top200$M, option = "D")) %>%
+  column_spec(5, color="white", background = spec_color(top200$`F`, option = "D")) %>% 
+  column_spec(6, color="white", background = spec_color(top200$Developed, option = "D"))%>%
+  column_spec(7, color="white", background = spec_color(top200$`D'ing A&O`, option = "D"))%>%
+  column_spec(8, color="white", background = spec_color(top200$`LA&TC`, option = "D"))%>%
+  column_spec(9, color="white", background = spec_color(top200$Africa, option = "D"))%>%
+  column_spec(10, color="white", background = spec_color(top200$LDC, option = "D")) %>% 
+  column_spec(11, color="white", background = spec_color(top200$LLDC, option = "D")) %>% 
+  column_spec(12, color="white", background = spec_color(top200$SIDS, option = "D"))
+
+
+```
+
+## TF-IDF by group (country names removed)
+```{r, echo=FALSE}
+library(ggplot2)
+# plots by subgroup
+
+readRDS(file = "r_helper_objects/gender_tf_idf.RDS") 
+
+readRDS(file = "r_helper_objects/region_tf_idf.RDS")
+
+readRDS(file = "r_helper_objects/LDC_tf_idf.RDS")
+
+readRDS(file = "r_helper_objects/LLDC_tf_idf.RDS")
+
+readRDS(file = "r_helper_objects/SIDS_UNCTAD_plus_tf_idf.RDS")
+
+```
+
+
+## TF-IDF by Country (country names removed)
+
+<iframe src="https://bakered91.shinyapps.io/tf-idf/" width="100%" height="900" frameborder="0" allowfullscreen></iframe>
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.width = 6, fig.height = 3.5)
+library(htmlwidgets)
+library(webshot)
+source("r_helper_objects/UNITAS_graphs1.R")
+theme_set(
+  theme_minimal(base_family = "Helvetica") +
+  theme(
+    text = element_text(family = "Helvetica")  # Set the font family
+  )
+)
+``` 
+
+
+## Word Clouds
+
+### top200 word count
+
+```{r, echo=FALSE}
+word_cloud_word_count = top200 %>% 
+  select(word, all_absolute) %>% 
+  wordcloud2(size=0.8, color=rep_len(c("grey","skyblue"), nrow(top200)))
+saveWidget(word_cloud_word_count, "tmp.html", selfcontained = F)
+webshot("tmp.html", "word_cloud1.png", delay = 5)
+```
+
+### from UNITAS key topics question
+
+```{r, echo=FALSE}
+word_cloud2 = wordcloud2(words2, size =0.8, color=rep_len(c("grey","skyblue"), nrow(words2)))
+saveWidget(word_cloud2, "tmp.html", selfcontained = F)
+webshot("tmp.html", "word_cloud2.png", delay = 5)
+```
+
+\pagebreak
+
+## UNITAS insights
+
+The following is a partial analysis of `r num_speeches`/194 GA speeches from 2024 using UNITAS LLM.
+
+### name the 5 key topics of the speech
+
+Prompt: Name the 5 key topics or themes of the speech transcript. Give the answer in the form of a comma separated list (topic1, topic2, topic3, topic4, topic5) where each topic is a single word or two words. If there are fewer than five topics, leave the space blank. Only reply with the list, do not write anything else.
+
+First time we ask the question:
+
+```{r, echo=FALSE}
+lollipop_plot("keyTopics5")
+```
+
+If we ask UNITAS the same question again, it comes up with similar answers:
+
+```{r, echo=FALSE}
+lollipop_plot("keyTopics5B")
+```
+
+\pagebreak
+
+### Which countries or regions does the speech mention?
+
+Prompt: Which countries or regions does the speech transcript mention? Give a reply in the form of a comma separated list with the most mentioned country or region first. Do not write anything else.
+
+```{r, echo=FALSE}
+lollipop_plot("countries")
+```
+
+\pagebreak
+
+### What is the general sentiment of the speech?
+
+Prompt: What is the general sentiment of the speech?IGive a one or two word reply from one of the following five options: 'negative', 'slightly negative', 'neutral', 'slightly positive' or 'positive'. Do not write anything else.
+
+```{r, echo=FALSE}
+ bar_plot("sentiment")
+```
+
+```{r, echo=FALSE}
+ bar_plot("sentiment", group="region")
+```
+
+\pagebreak
+
+### What issue or concern is the speech most worried about?
+
+Prompt: What issue or concern does the speech transcript express the most worry or concern about? Give a reply in one or two words. Do not write anything else.
+
+```{r, echo=FALSE}
+ lollipop_plot("concerns")
+```
+
+\pagebreak
+
+### Which crises does the speech mention?
+
+Prompt: Which crises does the speech transcript mention? Give a reply in the form of a comma-separated list with the most mentioned crisis first. Do not write anything else.
+
+```{r, echo=FALSE}
+  lollipop_plot("crises")
+```
+
+\pagebreak
+
+### Does the speech mention issues related to food supply?
+
+Prompt: Does the speech mention issues related to food supply? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+```{r, echo=FALSE}
+  bar_plot("crisisFood")
+```
+
+```{r, echo=FALSE}
+  bar_plot("crisisFood", group="region")
+```
+
+\pagebreak
+
+### Does the speech mention issues related to finance?
+
+Prompt: Does the speech mention issues related to finance? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+```{r, echo=FALSE}
+bar_plot("crisisFinance")
+```
+
+```{r, echo=FALSE}
+  bar_plot("crisisFinance", group="region")
+```
+
+\pagebreak
+
+### Does the speech mention issues related to energy supply?
+
+Prompt: Does the speech mention issues related to energy supply? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+```{r, echo=FALSE}
+ bar_plot("crisisEnergy")
+
+```
+
+```{r, echo=FALSE}
+
+bar_plot("crisisEnergy", group="region")
+```
+
+\pagebreak
+
+### Which other nations or international bodies does the speech criticize?
+
+Prompt: Which nations or international bodies does the speech transcript criticize? Give a reply in the form of a comma-separated list with the most criticized nation or body first. Do not write anything else.
+
+```{r, echo=FALSE}
+  lollipop_plot("criticise")
+```
+
+\pagebreak
+
+### Which other nations or international bodies does the speech praise?
+
+Prompt: Which nations or international bodies does the speech transcript praise? Give a reply in the form of a comma-separated list with the most praised nation or body first. Do not write anything else.
+
+```{r, echo=FALSE}
+  lollipop_plot("praise")
+```
+
+\pagebreak
+
+### Does the speech mention war or armed conflict?
+
+Prompt: Does the speech mention war or armed conflict? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+```{r, echo=FALSE}
+  bar_plot("conflict")
+```
+
+```{r, echo=FALSE}
+bar_plot("conflict", group="region")
+```
+
+\pagebreak
+
+### Does the speech mention the Israel Palestine conflict?
+
+Prompt: Does the speech transcript mention the Israel Palestine conflict or peace process? Give a one word reply. Answer either 'Yes' or 'No'.
+
+```{r, echo=FALSE}
+bar_plot("israelPalestineConflict")
+```
+
+```{r, echo=FALSE}
+bar_plot("israelPalestineConflict", group="region")
+```
+
+\pagebreak
+
+### Is the speech more supportive of Israel or Palestine?
+
+Prompt: Is the speech transcript more supportive of Israel or Palestine? Give a reply from one of the following four options: 'Israel', 'Palestine', 'neither', 'both'. If the speech does not mention Israel or Palestine, answer 'neither'. Do not write anything else.
+
+```{r, echo=FALSE}
+bar_plot("proIsraelPalestine")
+```
+
+```{r, echo=FALSE}
+bar_plot("proIsraelPalestine", group="region")
+```
+
+\pagebreak
+
+### Does the speech mention the conflict in Ukraine?
+
+Prompt: Does the speech mention the conflict in Ukraine? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+```{r, echo=FALSE}
+bar_plot("ukraineConflict")
+```
+
+```{r, echo=FALSE}
+bar_plot("ukraineConflict", group="region")
+```
+
+\pagebreak
+
+### Is the speech more supportive of Ukraine or Russia?
+
+Prompt: Is the speech more supportive of Ukraine or Russia? Give a reply from one of the following options: 'Ukraine', 'Russia', 'neutral'. Do not write anything else.
+
+```{r, echo=FALSE}
+bar_plot("proUkraineConflict")
+```
+
+```{r, echo=FALSE}
+bar_plot("proUkraineConflict", group="region")
+```
+
+\pagebreak
+
+### Does the speech mention global climate change?
+
+Prompt: Does the speech mention global climate change? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+```{r, echo=FALSE}
+bar_plot("climateChange")
+```
+
+```{r, echo=FALSE}
+bar_plot("climateChange", group="region")
+```
+
+```{r, echo=FALSE}
+bar_plot("climateChange", group="SIDS_UNCTAD_plus")
+```
+
+\pagebreak
+
+### Does the speech express concern about global climate change?
+
+Prompt: Does the speech express concern about global climate change? Does it think we need to do more to combat global climate change? Give a reply from one of the following options: 'says we need to do more', 'says we are doing enough', 'says we need to do less'. 'does not mention global climate change'. Do not write anything else.
+
+```{r, echo=FALSE}
+bar_plot("combatClimate")
+```
+
+```{r, echo=FALSE}
+bar_plot("combatClimate", group="region")
+```
+
+```{r, echo=FALSE}
+bar_plot("combatClimate", group="SIDS_UNCTAD_plus")
+```
+\pagebreak
+
+### Does the speech mention gender equality or protecting women's rights?
+
+Prompt: Does the speech mention gender equality or protecting women's rights? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+```{r, echo=FALSE}
+bar_plot("gender")
+```
+
+```{r, echo=FALSE}
+bar_plot("gender", group="Gender")
+```
+
+
+### Does the speech refer to inequalities?
+
+Prompt: Does the speech refer to inequalities? Give a reply from one of the following options: 'not at all', 'briefly', 'a lot'. Do not write anything else.
+
+```{r, echo=FALSE}
+bar_plot("inequality")
+```
+
+```{r, echo=FALSE}
+bar_plot("inequality", group="region")
+```
+
+
+## Process
+
+```{mermaid}
+graph TD;
+    A0(word_list.xlsx);
+    A1(metadata.xlsx);
+    A2(UNITAS_questions.xlsx);
+    A0-->B1(nlp_process);
+    A1-->B1;
+    A1-->B2(UNITAS_process);
+    A2-->B2;
+    B1-->C1(txt_files);
+    B1-->C2(csv_outputs);
+    B1-->C3(visual_outputs);
+    B2-->C4(UNITAS_answers.csv);
+    C2-->D0(all_search_terms_occurrences.csv)
+    C2-->D1(GA_initial_findings.html);
+    C4-->D1;
+    C3-->D1;
+    D0-->E1(magic);
+    D1-->E1;
+    E1-->F1(report);
+    
+    click A0 "https://unitednations.sharepoint.com/:x:/r/sites/GlobalCrisisResponseGroup-TechnicalTeam/Shared%20Documents/General/reports/2024-09-24%20GA%20speech%20analysis/data/word_list.xlsx?d=w8da57a880da1414eba3641e07f40d4b1&csf=1&web=1&e=tSYpPN" "Go to"
+    click A1 "https://unitednations.sharepoint.com/:x:/r/sites/GlobalCrisisResponseGroup-TechnicalTeam/Shared%20Documents/General/reports/2024-09-24%20GA%20speech%20analysis/data/metadata.xlsx?d=w5902d4ffe2bc42dbbaf9cc207811a50f&csf=1&web=1&e=vFt7K0" "Go to Google"
+    click A2 "https://unitednations.sharepoint.com/:x:/r/sites/GlobalCrisisResponseGroup-TechnicalTeam/Shared%20Documents/General/reports/2024-09-24%20GA%20speech%20analysis/data/UNITAS_questions.xlsx?d=w0db4e451b4f94427aeb940ebf0268d24&csf=1&web=1&e=4EDeRW" "Go to UNITAS_questions"
+    click C4 "https://unitednations.sharepoint.com/:u:/r/sites/GlobalCrisisResponseGroup-TechnicalTeam/Shared%20Documents/General/reports/2024-09-24%20GA%20speech%20analysis/data/GA24_initial_findings.html?csf=1&web=1&e=DqgkaF" "go to"
+```
+
+

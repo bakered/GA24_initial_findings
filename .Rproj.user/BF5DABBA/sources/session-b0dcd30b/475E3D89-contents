@@ -1,0 +1,123 @@
+library(dplyr)
+library(purrr)
+library(wordcloud2)
+library(ggplot2)
+library(stringr)
+
+getwd()
+
+UNITAS_answers <- read.csv("~/UN_projects/GA24/Ed_use_VM_for_llm/csv_outputs/UNITAS_answers.csv") 
+UNITAS_answers$Unnamed..0 = NULL
+UNITAS_answers = UNITAS_answers %>% 
+  filter(summary != "" & !is.na(summary))
+
+# expanding the UNITAS answers dataframe 
+if(FALSE){
+  # Create a new dataframe for text_id from 1 to 194
+  extended_df <- data.frame(
+    text_id = 73:198,
+    local_txt_filepath = paste0('txt_files/', 73:198, '.txt'),
+    stringsAsFactors = FALSE
+  )
+  # Get the names of other columns in the original dataframe
+  other_columns <- setdiff(colnames(UNITAS_answers), c("text_id", "local_txt_filepath"))
+  # Add other columns with NA values
+  for (col in other_columns) {
+    extended_df[[col]] <- NA
+  }
+  # Combine original with extended dataframe
+  UNITAS_answers <- UNITAS_answers %>%
+    rbind(extended_df)
+  #save
+  write.csv(UNITAS_answers, "~/UN_projects/GA24/Ed_use_VM_for_llm/csv_outputs/UNITAS_answers.csv")
+}
+
+# colnames(UNITAS_answers)[!grepl("Support", colnames(UNITAS_answers))]  %>% dput()
+
+cols_to_clean = c("summary", "keyTopics5", "keyTopics5B", 
+                  "countries", "sentiment", "concerns", "crises", 
+                  "crisisFood", "crisisFinance", "crisisEnergy", 
+                  "criticise", "praise", "conflict", 
+                  "israelPalestineConflict", "proIsraelPalestine", 
+                  "ukraineConflict", "proUkraineConflict", 
+                  "climateChange", "combatClimate", "gender", 
+                  "inequality")
+
+UNITAS_answers_cleaned <- UNITAS_answers %>%
+  mutate(across(cols_to_clean, 
+                ~ str_split_fixed(.x, "system:|(system)", 2)[,1] %>% 
+                  str_remove_all("\\S*\\.txt\\S*") %>% 
+                  str_remove("^\\d+")))
+
+
+accepted_answers=list(
+  "sentiment" = c("slightly positive", "positive", "slightly negative", "negative", "neutral"),
+  "crisisFood" = c("not at all", "briefly", "a lot"),
+  "crisisFinance" = c("not at all", "briefly", "a lot"),
+  "crisisEnergy"= c("not at all", "briefly", "a lot"),
+  "conflict" = c("not at all", "briefly", "a lot"),
+  "israelPalestineConflict" = c("yes", "no"), 
+  "proIsraelPalestine" = c("neither", "both", "palestine", "israel"), 
+  "ukraineConflict" = c("not at all", "briefly", "a lot"),
+  "proUkraineConflict" = c("neutral", "ukraine", "russia"), 
+  "climateChange" = c("not at all", "briefly", "a lot"), 
+  "combatClimate" = c('says we need to do more', 'says we are doing enough', 'says we need to do less', 'does not mention global climate change'), 
+  "gender" = c("not at all", "briefly", "a lot"), 
+  "inequality" = c("not at all", "briefly", "a lot")
+)
+
+UNITAS_answers_cleaned <- UNITAS_answers_cleaned %>%
+  mutate(across(all_of(names(accepted_answers)), 
+                ~ {
+                  str_split_fixed(.x, "(?i)\\(Note|note:|filename:|assistant:|system|please note", 2)[, 1] %>% 
+                    str_replace_all("[[:punct:]]", "") %>% 
+                    str_replace_all("\\b\\S*brief\\S*\\b", "briefly") %>% 
+                    str_replace("Ucraine", "Ukraine") %>% 
+                    str_trim() %>% 
+                    tolower()
+                }))
+
+# Loop through each column specified in accepted_answers
+for (var in names(accepted_answers)) { #var = "crisisFood"
+  # Get potential answers for the current column
+  potential_answers <- accepted_answers[[var]]
+  for(row in c(1:nrow(UNITAS_answers_cleaned))){ #row=2
+    cleaned_text = UNITAS_answers_cleaned[[var]][row]
+    answer_mentioned <- sapply(potential_answers, function(x) grepl(x, cleaned_text))
+    # Determine the value to assign based on case_when logic
+    UNITAS_answers_cleaned[[var]][row] <- case_when(
+      cleaned_text %in% potential_answers ~ cleaned_text,
+      sum(answer_mentioned) == 1 ~ potential_answers[which(answer_mentioned)][1],
+      TRUE ~ "LLM fail"  # Default case
+    )
+  }
+}
+         
+for(var in names(accepted_answers)){
+  print(var)
+  UNITAS_answers_cleaned %>%  pull(!!sym(var)) %>% table() %>% print()
+}
+
+vars_to_clean= c("keyTopics5", "keyTopics5B", "countries", "concerns", "crises", "criticise", "praise")
+UNITAS_answers_cleaned = UNITAS_answers_cleaned %>%
+  mutate(across(all_of(vars_to_clean), 
+                ~ {
+                  str_split_fixed(.x, "\\n", 2)[, 1] %>% 
+                    str_trim() %>% 
+                    tolower()
+                }))
+
+metadata <- read.csv("../metadata.csv")
+
+UNITAS_answers_cleaned <- UNITAS_answers_cleaned %>% 
+  left_join(metadata %>% select(text_id, ISO3, Country, Day, Gender, region, LDC, SIDS_UNCTAD_plus, LLDC), by = "text_id") 
+
+UNITAS_answers_cleaned <- UNITAS_answers_cleaned %>%
+  mutate(across(names(accepted_answers), ~ factor(., levels = c(accepted_answers[[cur_column()]], "LLM fail"), ordered = TRUE)))
+
+to_logical = c("LDC", "SIDS_UNCTAD_plus", "LLDC")
+UNITAS_answers_cleaned <- UNITAS_answers_cleaned %>%
+  mutate(across(to_logical, ~ as.logical(.)))
+
+saveRDS(UNITAS_answers_cleaned , file="r_helper_objects/UNITAS_answers_cleaned.RDS")
+write.csv(UNITAS_answers_cleaned, file="../csv_outputs/UNITAS_answers_cleaned.csv")
