@@ -3,7 +3,7 @@
     "path": "~/UN_projects/GA24/GA24_quarto/GA24_initial_findings.qmd",
     "project_path": "GA24_initial_findings.qmd",
     "type": "quarto_markdown",
-    "hash": "2294823222",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1726672654762.0,
@@ -17,8 +17,8 @@
         "docOutlineVisible": "1",
         "rmdVisualCollapsedChunks": "",
         "rmdVisualModeLocation": "1646:981",
-        "cursorPosition": "37,167",
-        "scrollLine": "25",
+        "cursorPosition": "69,38",
+        "scrollLine": "58",
         "docOutlineSize": "125",
         "last_setup_crc32": "b0dcd30b9f24e0d6"
     },
@@ -27,7 +27,7 @@
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1727767667025,
+    "last_content_update": 1727776806353,
     "read_only": false,
     "read_only_alternatives": []
 }

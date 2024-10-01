@@ -309,3 +309,7 @@ saveRDS(SIDS_UNCTAD_plus_tf_idf, file = "r_helper_objects/SIDS_UNCTAD_plus_tf_id
 
 # bind
 # agregate by mean country
+
+metadata %>% select(Gender, region, LDC, LLDC, SIDS_UNCTAD_plus) %>% summary()
+lapply(metadata %>% select(Gender, region, LDC, LLDC, SIDS_UNCTAD_plus), function(x) if(is.factor(x) || is.character(x)) table(x))
+nrow(metadata)
