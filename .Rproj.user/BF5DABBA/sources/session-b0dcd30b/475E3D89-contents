@@ -86,6 +86,7 @@ for (var in names(accepted_answers)) { #var = "crisisFood"
     answer_mentioned <- sapply(potential_answers, function(x) grepl(x, cleaned_text))
     # Determine the value to assign based on case_when logic
     UNITAS_answers_cleaned[[var]][row] <- case_when(
+      UNITAS_answers[[var]][row] == "" | is.na(UNITAS_answers[[var]][row]) ~ "",
       cleaned_text %in% potential_answers ~ cleaned_text,
       sum(answer_mentioned) == 1 ~ potential_answers[which(answer_mentioned)][1],
       TRUE ~ "LLM fail"  # Default case
@@ -121,3 +122,7 @@ UNITAS_answers_cleaned <- UNITAS_answers_cleaned %>%
 
 saveRDS(UNITAS_answers_cleaned , file="r_helper_objects/UNITAS_answers_cleaned.RDS")
 write.csv(UNITAS_answers_cleaned, file="../csv_outputs/UNITAS_answers_cleaned.csv")
+
+
+# data.frame(original=UNITAS_answers$conflict, cleaned=UNITAS_answers_cleaned$conflict) %>% View()
+

@@ -86,15 +86,19 @@ if(F){
 }
 
 bar_plot = function(var, group=1){ #var="conflict"; group="unctad_development_status"
-  UNITAS_answers_cleaned %>% 
-    filter(!!sym(var) != "") %>%
+  df = UNITAS_answers_cleaned %>% 
+    filter(!!sym(var) != "")
+  ncountries = nrow(df)
+  df = df %>% 
     {
       if(group==1) {group_by(., !!sym(var))} else {filter(., !!sym(group) != "other") %>% group_by(!!sym(group), !!sym(var))}
     } %>% 
     summarise(count = n(), .groups = 'drop_last') %>%
     #ungroup() %>%  # for % as % of total ungroup here
     mutate(percent = count / sum(count)) %>% 
-    ungroup() %>%  #for % as e.g. % of women that mentioned gender issues ungroup here
+    ungroup()   #for % as e.g. % of women that mentioned gender issues ungroup here
+  
+  plot = df %>% 
     ggplot(aes(x = !!sym(var))) +
     {if(group == 1){
       geom_bar(aes(y = percent, group=1), fill = "skyblue", color = "black", stat = "identity")
@@ -103,13 +107,14 @@ bar_plot = function(var, group=1){ #var="conflict"; group="unctad_development_st
       geom_bar(aes(y = percent, group=!!sym(group), fill=!!sym(group)), color = "black", width=.5, position = "dodge", stat = "identity")
     }} +
     scale_y_continuous(labels=scales::percent) +
-    labs(title = NULL, 
+    labs(title = paste0(var, " (", ncountries, " countries)"), 
          x = NULL, 
          y = "Percentage") +  # Add labels to the axes and the plot
     {if(group != 1){
       theme(legend.position = "bottom") #, legend.title=element_blank())
     }} +
     theme(text = element_text(size = 12))
+  return(plot)
 }
 if(F){
   bar_plot("conflict", group="region")
