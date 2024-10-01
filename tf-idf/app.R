@@ -99,7 +99,7 @@ ui <- page_sidebar(
         }) %>%
         flatten() ,
       choiceValues = unique_iso$ISO3,
-      selected = c("USA", "LEB", "CRI", "ZAF", "UKR", "CHN","PSE")  #"ISR", 
+      selected = c("USA", "LEB", "CRI", "UKR", "CHN","PSE", "ISR", "RUS")  
     ),
     # Explainer box for TF-IDF
     wellPanel(

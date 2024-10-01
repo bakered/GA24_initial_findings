@@ -51,7 +51,7 @@ UNITAS_answers_cleaned <- UNITAS_answers %>%
 
 
 accepted_answers=list(
-  "sentiment" = c("slightly positive", "positive", "slightly negative", "negative", "neutral"),
+  "sentiment" = c("slightly positive", "positive", "neutral", "slightly negative", "negative"),
   "crisisFood" = c("not at all", "briefly", "a lot"),
   "crisisFinance" = c("not at all", "briefly", "a lot"),
   "crisisEnergy"= c("not at all", "briefly", "a lot"),
